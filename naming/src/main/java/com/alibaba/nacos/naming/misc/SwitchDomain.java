@@ -89,7 +89,7 @@ public class SwitchDomain implements Record, Cloneable {
 
     private String overriddenServerStatus = null;
 
-    private String serverMode = "MIXED";
+    private boolean defaultInstanceEphemeral = true;
 
     public boolean isEnableAuthentication() {
         return enableAuthentication;
@@ -139,9 +139,8 @@ public class SwitchDomain implements Record, Cloneable {
     // the followings are not implemented
 
     public String getName() {
-        return "00-00---000-VIPSRV_SWITCH_DOMAIN-000---00-00";
+        return UtilsAndCommons.SWITCH_DOMAIN_NAME;
     }
-
 
     public void update(SwitchDomain domain) {
 
@@ -343,12 +342,12 @@ public class SwitchDomain implements Record, Cloneable {
         this.overriddenServerStatus = overriddenServerStatus;
     }
 
-    public String getServerMode() {
-        return serverMode;
+    public boolean isDefaultInstanceEphemeral() {
+        return defaultInstanceEphemeral;
     }
 
-    public void setServerMode(String serverMode) {
-        this.serverMode = serverMode;
+    public void setDefaultInstanceEphemeral(boolean defaultInstanceEphemeral) {
+        this.defaultInstanceEphemeral = defaultInstanceEphemeral;
     }
 
     @Override
