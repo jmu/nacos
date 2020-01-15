@@ -17,6 +17,7 @@ package com.alibaba.nacos.naming.web;
 
 import com.alibaba.nacos.api.common.Constants;
 import com.alibaba.nacos.api.naming.CommonParams;
+import com.alibaba.nacos.common.constant.HttpHeaderConsts;
 import com.alibaba.nacos.naming.core.DistroMapper;
 import com.alibaba.nacos.naming.misc.HttpClient;
 import com.alibaba.nacos.naming.misc.Loggers;
@@ -32,7 +33,10 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.security.AccessControlException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * @author nacos
@@ -61,7 +65,11 @@ public class DistroFilter implements Filter {
         HttpServletRequest req = (HttpServletRequest) servletRequest;
         HttpServletResponse resp = (HttpServletResponse) servletResponse;
 
-        String urlString = req.getRequestURI() + "?" + req.getQueryString();
+        String urlString = req.getRequestURI();
+
+        if (StringUtils.isNotBlank(req.getQueryString())) {
+            urlString += "?" + req.getQueryString();
+        }
 
         try {
             String path = new URI(req.getRequestURI()).getPath();
@@ -90,6 +98,16 @@ public class DistroFilter implements Filter {
             // proxy request to other server if necessary:
             if (method.isAnnotationPresent(CanDistro.class) && !distroMapper.responsible(groupedServiceName)) {
 
+                String userAgent = req.getHeader(HttpHeaderConsts.USER_AGENT_HEADER);
+
+                if (StringUtils.isNotBlank(userAgent) && userAgent.contains(UtilsAndCommons.NACOS_SERVER_HEADER)) {
+                    // This request is sent from peer server, should not be redirected again:
+                    Loggers.SRV_LOG.error("receive invalid redirect request from peer {}", req.getRemoteAddr());
+                    resp.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                        "receive invalid redirect request from peer " + req.getRemoteAddr());
+                    return;
+                }
+
                 List<String> headerList = new ArrayList<>(16);
                 Enumeration<String> headers = req.getHeaderNames();
                 while (headers.hasMoreElements()) {
@@ -98,7 +116,8 @@ public class DistroFilter implements Filter {
                     headerList.add(req.getHeader(headerName));
                 }
                 HttpClient.HttpResult result =
-                    HttpClient.request("http://" + distroMapper.mapSrv(groupedServiceName) + urlString, headerList, new HashMap<>(2)
+                    HttpClient.request("http://" + distroMapper.mapSrv(groupedServiceName) + urlString, headerList,
+                        StringUtils.isBlank(req.getQueryString()) ? HttpClient.translateParameterMap(req.getParameterMap()) : new HashMap<>(2)
                         , PROXY_CONNECT_TIMEOUT, PROXY_READ_TIMEOUT, "UTF-8", req.getMethod());
 
                 try {
